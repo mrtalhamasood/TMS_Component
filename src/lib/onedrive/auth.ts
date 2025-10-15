@@ -15,14 +15,29 @@ const pca = new PublicClientApplication({
   },
 });
 
-export async function acquireGraphToken(customScopes: string[] = scopes) {
-  const accounts = pca.getAllAccounts();
+let isInitialized = false;
 
-  if (!accounts.length) {
-    await pca.loginPopup({ scopes: customScopes });
+async function ensureInitialized() {
+  if (!isInitialized) {
+    await pca.initialize();
+    isInitialized = true;
+  }
+}
+
+export async function acquireGraphToken(customScopes: string[] = scopes) {
+  await ensureInitialized();
+
+  let account = pca.getActiveAccount() ?? pca.getAllAccounts()[0];
+
+  if (!account) {
+    const result = await pca.loginPopup({ scopes: customScopes });
+    account = result.account;
   }
 
-  const account = pca.getAllAccounts()[0];
+  if (!account) {
+    throw new Error("MSAL login did not return an account record.");
+  }
+
   pca.setActiveAccount(account);
 
   try {
